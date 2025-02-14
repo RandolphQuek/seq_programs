@@ -26,12 +26,24 @@ def process_record(record, is_protein):
     record.seq = Seq(cleaned_seq)
     return record
 
+# Function to filter sequences based on N content
+def filter_sequences(records, threshold_percent):
+    filtered_records = []
+    for record in records:
+        seq = str(record.seq)
+        n_count = seq.count('N')
+        n_percent = (n_count / len(seq)) * 100
+        if n_percent <= threshold_percent:
+            filtered_records.append(record)
+    return filtered_records
+
 # Set up argument parser
-parser = argparse.ArgumentParser(description="Clean FASTA sequences and headers.")
+parser = argparse.ArgumentParser(description="Clean and filter FASTA sequences and headers.")
 parser.add_argument("-i", "--input", required=True, help="Input FASTA file")
 parser.add_argument("-o", "--output", required=True, help="Output FASTA file")
 parser.add_argument("-t", "--threads", type=int, default=4, help="Number of threads to use (default: 4)")
 parser.add_argument("--protein", action='store_true', help="Specify if the input is protein sequences")
+parser.add_argument("--threshold", type=float, default=5, help="Threshold percentage for N content (default: 5%)")
 
 args = parser.parse_args()
 
@@ -47,10 +59,12 @@ with open(args.output, "w") as output_handle:
             record.name = cleaned_header
             record.description = cleaned_header
 
-        # Then clean the sequences in parallel
+        # Clean the sequences in parallel
         cleaned_records = list(executor.map(lambda r: process_record(r, args.protein), records))
 
-        SeqIO.write(cleaned_records, output_handle, "fasta")
+        # Filter the cleaned sequences based on N content
+        filtered_records = filter_sequences(cleaned_records, args.threshold)
 
-print("Sequences and headers cleaned successfully!")
+        SeqIO.write(filtered_records, output_handle, "fasta")
 
+print("Sequences and headers cleaned and filtered successfully!")
